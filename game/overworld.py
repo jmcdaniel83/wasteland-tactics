@@ -6,6 +6,7 @@ import pygame
 
 from game import constants as c
 from game import iso
+from game import sprites
 from game.data.maps import OVERWORLD_MAP
 
 TILE_COLORS = {
@@ -40,6 +41,10 @@ class Overworld:
         self.message = ""
         self.message_timer = 0.0
         self.encounter_chance = 0.12
+        self.facing = 0  # camera rotation, in 90-degree steps clockwise
+
+    def rotate_view(self, step):
+        self.facing = (self.facing + step) % 4
 
     def _find_start(self):
         for y, row in enumerate(self.rows):
@@ -100,30 +105,37 @@ class Overworld:
         tile_w, tile_h = c.ISO_TILE_W, c.ISO_TILE_H
         view_h = c.SCREEN_HEIGHT - 90
         viewport_center = (c.SCREEN_WIDTH / 2, view_h / 2)
-        origin = iso.camera_origin(self.px, self.py, viewport_center, tile_w, tile_h)
+
+        rpx, rpy = iso.rotate_coords(self.px, self.py, self.width, self.height, self.facing)
+        origin = iso.camera_origin(rpx, rpy, viewport_center, tile_w, tile_h)
 
         # Painter's algorithm: draw back-to-front so raised walls don't
         # cover tiles that are actually in front of them.
         cells = sorted(
             ((x, y) for y in range(self.height) for x in range(self.width)),
-            key=lambda p: p[0] + p[1],
+            key=lambda p: sum(iso.rotate_coords(p[0], p[1], self.width, self.height, self.facing)),
         )
 
         for (x, y) in cells:
             ch = self.rows[y][x]
+            rx, ry = iso.rotate_coords(x, y, self.width, self.height, self.facing)
             color = TILE_COLORS.get(ch, c.COLOR_SAND)
             height = c.WALL_HEIGHT if ch in WALL_TILES else 0
-            iso.draw_tile(surface, x, y, origin, color, tile_w, tile_h, height=height)
-            if ch in ENCOUNTER_TILES:
-                cx, cy = iso.tile_center(x, y, origin, tile_w, tile_h)
-                pygame.draw.circle(surface, (60, 20, 20), (int(cx), int(cy)), 4)
+            iso.draw_tile(surface, rx, ry, origin, color, tile_w, tile_h, height=height)
+            if ch in WALL_TILES:
+                center = iso.tile_center(rx, ry, origin, tile_w, tile_h)
+                sprites.blit_grounded(surface, sprites.decoration("rock"),
+                                       (center[0], center[1] - c.WALL_HEIGHT))
+            elif ch in ENCOUNTER_TILES:
+                center = iso.tile_center(rx, ry, origin, tile_w, tile_h)
+                sprites.blit_grounded(surface, sprites.decoration("skull"), center)
             elif ch in TOWN_TILES:
-                cx, cy = iso.tile_center(x, y, origin, tile_w, tile_h)
-                pygame.draw.circle(surface, (255, 240, 200), (int(cx), int(cy)), 4)
+                center = iso.tile_center(rx, ry, origin, tile_w, tile_h)
+                sprites.blit_grounded(surface, sprites.decoration("town"), center)
 
-        pcx, pcy = iso.tile_center(self.px, self.py, origin, tile_w, tile_h)
-        pygame.draw.circle(surface, (60, 130, 220), (int(pcx), int(pcy)), tile_h // 2)
-        pygame.draw.circle(surface, (255, 255, 255), (int(pcx), int(pcy)), tile_h // 2, 2)
+        rpx, rpy = iso.rotate_coords(self.px, self.py, self.width, self.height, self.facing)
+        center = iso.tile_center(rpx, rpy, origin, tile_w, tile_h)
+        sprites.blit_grounded(surface, sprites.unit_sprite(self.party[0]), center)
 
         self._draw_hud(surface)
 
@@ -142,7 +154,7 @@ class Overworld:
             x += label.get_width() + 30
 
         help_label = font.render(
-            "WASD/Arrows: move   Red zones (E): danger   T: town (safe, heals)",
+            "WASD/Arrows: move   Q/E: rotate view   Red zones: danger   Houses: town (heals)",
             True, c.COLOR_TEXT_DIM,
         )
         surface.blit(help_label, (16, c.SCREEN_HEIGHT - 40))

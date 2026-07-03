@@ -4,9 +4,11 @@ Final Fantasy Tactics style grid-based, turn-based combat.
 
 Controls
   Overworld:  WASD / Arrow keys to move
+              Q / E = rotate camera
   Battle:     Left click to select a unit, move, and attack
               Space = end unit's turn early
               Esc   = cancel current selection (before moving)
+              Q / E = rotate camera
 """
 
 import sys
@@ -64,11 +66,21 @@ class Game:
                 elif event.key in (pygame.K_SPACE, pygame.K_RETURN):
                     if self.state == c.STATE_BATTLE and self.battle:
                         self.battle.end_unit_turn()
+                elif event.key == pygame.K_q:
+                    self._rotate_view(-1)
+                elif event.key == pygame.K_e:
+                    self._rotate_view(1)
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if self.state == c.STATE_BATTLE and self.battle:
                     tile = self.battle.pixel_to_tile(event.pos)
                     if tile:
                         self.battle.handle_click(tile)
+
+    def _rotate_view(self, step):
+        if self.state == c.STATE_OVERWORLD:
+            self.overworld.rotate_view(step)
+        elif self.state == c.STATE_BATTLE and self.battle:
+            self.battle.rotate_view(step)
 
     def update(self, dt):
         if self.state == c.STATE_OVERWORLD:

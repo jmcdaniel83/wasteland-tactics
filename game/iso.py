@@ -85,6 +85,36 @@ def camera_origin(gx, gy, viewport_center, tile_w=64, tile_h=32):
     return vx - raw_x, vy - raw_y
 
 
+def rotated_dims(cols, rows, facing):
+    """Bounding-box dims after rotating a cols x rows grid `facing` quarter turns."""
+    return (rows, cols) if facing % 4 in (1, 3) else (cols, rows)
+
+
+def rotate_coords(gx, gy, cols, rows, facing):
+    """Map a logical grid coordinate to its draw coordinate for camera `facing`
+    (0-3, quarter turns clockwise). Use with `rotated_dims` for the bounding box."""
+    f = facing % 4
+    if f == 0:
+        return gx, gy
+    if f == 1:
+        return rows - 1 - gy, gx
+    if f == 2:
+        return cols - 1 - gx, rows - 1 - gy
+    return gy, cols - 1 - gx  # f == 3
+
+
+def unrotate_coords(rx, ry, cols, rows, facing):
+    """Inverse of rotate_coords: draw coordinate -> original logical grid coordinate."""
+    f = facing % 4
+    if f == 0:
+        return rx, ry
+    if f == 1:
+        return ry, rows - 1 - rx
+    if f == 2:
+        return cols - 1 - rx, rows - 1 - ry
+    return cols - 1 - ry, rx  # f == 3
+
+
 def shade(color, factor):
     """Lighten (factor > 1) or darken (factor < 1) an RGB color."""
     return tuple(max(0, min(255, int(ch * factor))) for ch in color)
