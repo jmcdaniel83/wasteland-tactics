@@ -115,6 +115,30 @@ def unrotate_coords(rx, ry, cols, rows, facing):
     return cols - 1 - ry, rx  # f == 3
 
 
+def rotate_vector(dx, dy, facing):
+    """Rotate a grid-space direction vector by `facing` quarter turns clockwise.
+
+    Unlike rotate_coords this has no bounding box (and no reflection term to
+    cancel out) since a direction has no position - just the linear part of
+    the same rotation.
+    """
+    f = facing % 4
+    if f == 0:
+        return dx, dy
+    if f == 1:
+        return -dy, dx
+    if f == 2:
+        return -dx, -dy
+    return dy, -dx  # f == 3
+
+
+def screen_relative_delta(dx, dy, facing):
+    """Given a direction the player wants to see on screen (as if facing == 0),
+    return the grid-space (dx, dy) to actually move so it still looks that way
+    after the camera has been rotated to `facing`."""
+    return rotate_vector(dx, dy, (4 - facing) % 4)
+
+
 def shade(color, factor):
     """Lighten (factor > 1) or darken (factor < 1) an RGB color."""
     return tuple(max(0, min(255, int(ch * factor))) for ch in color)

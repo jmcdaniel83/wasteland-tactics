@@ -68,18 +68,23 @@ class Overworld:
         if self.move_timer > 0:
             return
 
-        dx = dy = 0
+        screen_dx = screen_dy = 0
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-            dx = -1
+            screen_dx = -1
         elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            dx = 1
+            screen_dx = 1
         elif keys[pygame.K_UP] or keys[pygame.K_w]:
-            dy = -1
+            screen_dy = -1
         elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
-            dy = 1
+            screen_dy = 1
 
-        if dx == 0 and dy == 0:
+        if screen_dx == 0 and screen_dy == 0:
             return
+
+        # Keys are relative to what's on screen, not the underlying grid, so
+        # "up" always moves toward the top of the screen no matter how the
+        # camera has been rotated.
+        dx, dy = iso.screen_relative_delta(screen_dx, screen_dy, self.facing)
 
         nx, ny = self.px + dx, self.py + dy
         tile = self._tile(nx, ny)
