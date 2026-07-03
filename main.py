@@ -66,18 +66,9 @@ class Game:
                         self.battle.end_unit_turn()
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if self.state == c.STATE_BATTLE and self.battle:
-                    tile = self._pixel_to_tile(event.pos)
+                    tile = self.battle.pixel_to_tile(event.pos)
                     if tile:
                         self.battle.handle_click(tile)
-
-    def _pixel_to_tile(self, pos, origin=(40, 40), tile=48):
-        ox, oy = origin
-        x, y = pos
-        gx = (x - ox) // tile
-        gy = (y - oy) // tile
-        if 0 <= gx < self.battle.grid.cols and 0 <= gy < self.battle.grid.rows:
-            return int(gx), int(gy)
-        return None
 
     def update(self, dt):
         if self.state == c.STATE_OVERWORLD:

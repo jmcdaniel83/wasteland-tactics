@@ -1,9 +1,13 @@
 """Shared constants for Wasteland Tactics."""
 
-TILE_SIZE = 32
 SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 640
 FPS = 60
+
+# Isometric diamond tile dimensions (2:1 ratio, classic iso look)
+ISO_TILE_W = 64
+ISO_TILE_H = 32
+WALL_HEIGHT = 26  # pixels a '#' block is raised, for the pseudo-3D look
 
 # Overworld tile colors (procedural, no external art needed)
 COLOR_SAND = (196, 164, 108)

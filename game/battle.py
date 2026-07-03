@@ -7,7 +7,12 @@ from collections import deque
 import pygame
 
 from game import constants as c
+from game import iso
 from game.data.battle_maps import BATTLE_MAPS
+
+SIDEBAR_WIDTH = 260
+BATTLE_MARGIN = 30
+BANNER_HEIGHT = 40
 
 PHASE_SELECT = "select"        # waiting for the player to pick a unit
 PHASE_MOVE = "move"            # a unit is selected, showing move range
@@ -115,6 +120,22 @@ class Battle:
         self.victory = False
         self.enemy_think_timer = 0.0
         self.message = "Your turn. Click a unit to act."
+
+        self.tile_w, self.tile_h = c.ISO_TILE_W, c.ISO_TILE_H
+        target_rect = (
+            BATTLE_MARGIN, BATTLE_MARGIN,
+            c.SCREEN_WIDTH - SIDEBAR_WIDTH - 2 * BATTLE_MARGIN,
+            c.SCREEN_HEIGHT - 2 * BATTLE_MARGIN - BANNER_HEIGHT,
+        )
+        self.origin = iso.fit_origin(self.grid.cols, self.grid.rows, target_rect,
+                                      self.tile_w, self.tile_h)
+
+    def pixel_to_tile(self, pos):
+        """Screen position -> (grid_x, grid_y), or None if outside the grid."""
+        gx, gy = iso.screen_to_grid(pos[0], pos[1], self.origin, self.tile_w, self.tile_h)
+        if self.grid.in_bounds(gx, gy):
+            return gx, gy
+        return None
 
     # -- turn order -----------------------------------------------------
     def _build_turn_queue(self):
@@ -299,38 +320,38 @@ class Battle:
         self._advance_turn()
 
     # -- rendering -----------------------------------------------------
-    def draw(self, surface, origin=(40, 40), tile=48):
-        ox, oy = origin
+    def draw(self, surface):
+        origin = self.origin
+        tile_w, tile_h = self.tile_w, self.tile_h
         font = pygame.font.SysFont("consolas", 14)
 
-        for y in range(self.grid.rows):
-            for x in range(self.grid.cols):
-                rect = pygame.Rect(ox + x * tile, oy + y * tile, tile - 2, tile - 2)
-                color = (40, 46, 38) if (x + y) % 2 == 0 else (34, 40, 32)
-                if (x, y) in self.grid.blocked:
-                    color = (70, 60, 55)
-                pygame.draw.rect(surface, color, rect)
+        cells = sorted(
+            ((x, y) for y in range(self.grid.rows) for x in range(self.grid.cols)),
+            key=lambda p: p[0] + p[1],
+        )
+        for (x, y) in cells:
+            blocked = (x, y) in self.grid.blocked
+            color = (70, 60, 55) if blocked else ((44, 50, 42) if (x + y) % 2 == 0 else (38, 44, 36))
+            height = c.WALL_HEIGHT if blocked else 0
+            iso.draw_tile(surface, x, y, origin, color, tile_w, tile_h, height=height)
 
+        overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
         if self.phase == PHASE_MOVE:
             for (x, y) in self.move_tiles:
-                rect = pygame.Rect(ox + x * tile, oy + y * tile, tile - 2, tile - 2)
-                s = pygame.Surface((tile - 2, tile - 2), pygame.SRCALPHA)
-                s.fill(c.COLOR_HIGHLIGHT_MOVE)
-                surface.blit(s, rect)
+                pygame.draw.polygon(overlay, c.COLOR_HIGHLIGHT_MOVE,
+                                     iso.diamond_points(x, y, origin, tile_w, tile_h))
         if self.phase in (PHASE_MOVE, PHASE_ATTACK):
             for (x, y) in self.attack_tiles:
-                rect = pygame.Rect(ox + x * tile, oy + y * tile, tile - 2, tile - 2)
-                s = pygame.Surface((tile - 2, tile - 2), pygame.SRCALPHA)
-                s.fill(c.COLOR_HIGHLIGHT_ATTACK)
-                surface.blit(s, rect)
+                pygame.draw.polygon(overlay, c.COLOR_HIGHLIGHT_ATTACK,
+                                     iso.diamond_points(x, y, origin, tile_w, tile_h))
+        surface.blit(overlay, (0, 0))
 
         cur = self.current_unit
-        for u in self.units:
-            if not u.alive:
-                continue
-            cx = ox + u.x * tile + tile // 2
-            cy = oy + u.y * tile + tile // 2
-            radius = tile // 2 - 6
+        living = sorted((u for u in self.units if u.alive), key=lambda u: u.x + u.y)
+        for u in living:
+            cx, cy = iso.tile_center(u.x, u.y, origin, tile_w, tile_h)
+            cx, cy = int(cx), int(cy)
+            radius = tile_h // 2 + 4
             pygame.draw.circle(surface, u.color, (cx, cy), radius)
             border = (255, 255, 255) if u is cur else (0, 0, 0)
             pygame.draw.circle(surface, border, (cx, cy), radius, 2)
@@ -338,22 +359,24 @@ class Battle:
                 pygame.draw.circle(surface, c.COLOR_HIGHLIGHT_SELECT[:3], (cx, cy), radius + 4, 2)
 
             hp_ratio = u.hp / u.max_hp if u.max_hp else 0
-            bar_w = tile - 10
-            bar_rect_bg = pygame.Rect(cx - bar_w // 2, cy - radius - 10, bar_w, 5)
+            bar_w = tile_w - 20
+            bar_rect_bg = pygame.Rect(cx - bar_w // 2, cy - radius - 12, bar_w, 5)
             pygame.draw.rect(surface, (40, 10, 10), bar_rect_bg)
             pygame.draw.rect(surface, c.COLOR_HP, (bar_rect_bg.x, bar_rect_bg.y, int(bar_w * hp_ratio), 5))
 
             label = font.render(u.name.split(" ")[0], True, (230, 230, 230))
             surface.blit(label, (cx - label.get_width() // 2, cy + radius + 2))
 
-        self._draw_sidebar(surface, ox + self.grid.cols * tile + 30, oy)
+        self._draw_sidebar(surface, c.SCREEN_WIDTH - SIDEBAR_WIDTH + 10, BATTLE_MARGIN)
 
     def _draw_sidebar(self, surface, x, y):
-        font = pygame.font.SysFont("consolas", 16)
-        title = font.render("TURN ORDER", True, c.COLOR_TEXT)
+        title_font = pygame.font.SysFont("consolas", 16)
+        line_font = pygame.font.SysFont("consolas", 13)
+        title = title_font.render("TURN ORDER", True, c.COLOR_TEXT)
         surface.blit(title, (x, y))
         for i, u in enumerate(self.turn_queue[:8]):
             tag = "> " if i == 0 else "  "
             color = c.COLOR_TEXT if u.faction == c.FACTION_PLAYER else (230, 120, 120)
-            line = font.render(f"{tag}{u.name} (HP {u.hp}/{u.max_hp})", True, color)
+            short_name = u.name.split(" ")[0]
+            line = line_font.render(f"{tag}{short_name} {u.hp}/{u.max_hp}", True, color)
             surface.blit(line, (x, y + 26 + i * 20))

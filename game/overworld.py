@@ -5,6 +5,7 @@ import random
 import pygame
 
 from game import constants as c
+from game import iso
 from game.data.maps import OVERWORLD_MAP
 
 TILE_COLORS = {
@@ -18,6 +19,7 @@ TILE_COLORS = {
     "@": c.COLOR_SAND,
 }
 BLOCKED_TILES = {"#", "~"}
+WALL_TILES = {"#"}  # raised as pseudo-3D blocks; water stays flat
 ENCOUNTER_TILES = {"E"}
 TOWN_TILES = {"T"}
 
@@ -95,27 +97,33 @@ class Overworld:
 
     def draw(self, surface):
         surface.fill(c.COLOR_BG)
-        tile = c.TILE_SIZE
-        view_cols = c.SCREEN_WIDTH // tile
-        view_rows = (c.SCREEN_HEIGHT - 90) // tile
+        tile_w, tile_h = c.ISO_TILE_W, c.ISO_TILE_H
+        view_h = c.SCREEN_HEIGHT - 90
+        viewport_center = (c.SCREEN_WIDTH / 2, view_h / 2)
+        origin = iso.camera_origin(self.px, self.py, viewport_center, tile_w, tile_h)
 
-        cam_x = max(0, min(self.px - view_cols // 2, self.width - view_cols))
-        cam_y = max(0, min(self.py - view_rows // 2, self.height - view_rows))
+        # Painter's algorithm: draw back-to-front so raised walls don't
+        # cover tiles that are actually in front of them.
+        cells = sorted(
+            ((x, y) for y in range(self.height) for x in range(self.width)),
+            key=lambda p: p[0] + p[1],
+        )
 
-        for sy in range(view_rows + 1):
-            for sx in range(view_cols + 1):
-                wx, wy = cam_x + sx, cam_y + sy
-                ch = self._tile(wx, wy)
-                color = TILE_COLORS.get(ch, c.COLOR_SAND)
-                rect = pygame.Rect(sx * tile, sy * tile, tile, tile)
-                pygame.draw.rect(surface, color, rect)
-                if ch == "E":
-                    pygame.draw.circle(surface, (60, 20, 20), rect.center, 3)
+        for (x, y) in cells:
+            ch = self.rows[y][x]
+            color = TILE_COLORS.get(ch, c.COLOR_SAND)
+            height = c.WALL_HEIGHT if ch in WALL_TILES else 0
+            iso.draw_tile(surface, x, y, origin, color, tile_w, tile_h, height=height)
+            if ch in ENCOUNTER_TILES:
+                cx, cy = iso.tile_center(x, y, origin, tile_w, tile_h)
+                pygame.draw.circle(surface, (60, 20, 20), (int(cx), int(cy)), 4)
+            elif ch in TOWN_TILES:
+                cx, cy = iso.tile_center(x, y, origin, tile_w, tile_h)
+                pygame.draw.circle(surface, (255, 240, 200), (int(cx), int(cy)), 4)
 
-        # player
-        prect = pygame.Rect((self.px - cam_x) * tile, (self.py - cam_y) * tile, tile, tile)
-        pygame.draw.circle(surface, (60, 130, 220), prect.center, tile // 2 - 4)
-        pygame.draw.circle(surface, (255, 255, 255), prect.center, tile // 2 - 4, 2)
+        pcx, pcy = iso.tile_center(self.px, self.py, origin, tile_w, tile_h)
+        pygame.draw.circle(surface, (60, 130, 220), (int(pcx), int(pcy)), tile_h // 2)
+        pygame.draw.circle(surface, (255, 255, 255), (int(pcx), int(pcy)), tile_h // 2, 2)
 
         self._draw_hud(surface)
 
