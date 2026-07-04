@@ -11,55 +11,20 @@ A post-apocalyptic RPG that combines two classic styles:
 
 ## Requirements
 
-- Python 3.9+
-- [pygame](https://www.pygame.org/) 2.5+
+- Python 3.11+
+- [uv](https://docs.astral.sh/uv/)
 
-## Setup
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate   # on Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-## Run
+## Setup & run
 
 ```bash
-python main.py
+make install   # uv sync
+make run       # uv run python main.py
 ```
 
-## Controls
+See [docs/GAMEPLAY.md](docs/GAMEPLAY.md) for full controls and mechanics,
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the code is put
+together, and [docs/STATUS.md](docs/STATUS.md) for release history and
+what's next.
 
-### Overworld
-- `WASD` / arrow keys — move your party
-- Walking into a red **danger zone** tile has a chance of triggering a tactical battle
-- Walking onto a **town** tile fully heals your party
-
-### Battle
-- **Left click** your unit to select it (highlighted tiles show where it can move)
-- **Left click** a highlighted tile to move there
-- **Left click** an enemy highlighted in red to attack it (in range)
-- **Space** / **Enter** — end the current unit's turn early
-- **Esc** — cancel the current selection (before you've moved)
-
-Turn order (top-right sidebar) is driven by each unit's Speed stat. Enemies act
-automatically using simple "close the distance and attack" AI.
-
-## Project layout
-
-```
-main.py                 game loop / state machine (overworld <-> battle)
-game/constants.py       shared colors, sizes, faction/state constants
-game/entities.py        Unit stats, player party and enemy squad generation
-game/overworld.py       tile-based overworld map, movement, encounters
-game/battle.py          tactical grid, turn queue, movement/attack range, AI
-game/data/maps.py       overworld map layout
-game/data/battle_maps.py battle grid layouts
-```
-
-## Roadmap ideas
-
-- Height/elevation on the battle grid and line-of-sight blocking
-- Skills/abilities beyond basic attacks (grenades, aimed shots, stimpaks)
-- Persistent party leveling and loot between battles
-- Multiple overworld regions and hand-authored town/dialogue scenes
+Quick controls: `WASD`/arrows to move, `Q`/`E` to rotate the camera, mouse
+to act in battle. Full details in [docs/GAMEPLAY.md](docs/GAMEPLAY.md).
