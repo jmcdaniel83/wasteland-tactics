@@ -23,6 +23,7 @@ class Unit:
     alive: bool = True
     has_acted: bool = False
     has_moved: bool = False
+    sprite_id: str = None  # assets/characters/<sprite_id>/ - None means use the procedural sprite
 
     def __post_init__(self):
         if self.hp is None:
@@ -52,7 +53,8 @@ class Unit:
 def make_player_party():
     return [
         Unit(name="Lone Wanderer", faction="player", max_hp=32, attack=9, defense=4,
-             move=4, ap_max=2, attack_range=1, speed=8, color=(80, 160, 230)),
+             move=4, ap_max=2, attack_range=1, speed=8, color=(80, 160, 230),
+             sprite_id="wasteland_survivor_wearing_a_faded"),
         Unit(name="Dogmeat", faction="player", max_hp=20, attack=6, defense=2,
              move=6, ap_max=2, attack_range=1, speed=10, color=(150, 110, 70)),
         Unit(name="Sharpshooter", faction="player", max_hp=22, attack=8, defense=2,

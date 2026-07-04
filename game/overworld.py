@@ -42,6 +42,7 @@ class Overworld:
         self.message_timer = 0.0
         self.encounter_chance = 0.12
         self.facing = 0  # camera rotation, in 90-degree steps clockwise
+        self.facing_dir = "south"  # on-screen direction the player sprite faces
 
     def rotate_view(self, step):
         self.facing = (self.facing + step) % 4
@@ -80,6 +81,15 @@ class Overworld:
 
         if screen_dx == 0 and screen_dy == 0:
             return
+
+        if screen_dy == -1:
+            self.facing_dir = "north"
+        elif screen_dy == 1:
+            self.facing_dir = "south"
+        elif screen_dx == -1:
+            self.facing_dir = "west"
+        elif screen_dx == 1:
+            self.facing_dir = "east"
 
         # Keys are relative to what's on screen, not the underlying grid, so
         # "up" always moves toward the top of the screen no matter how the
@@ -140,7 +150,7 @@ class Overworld:
 
         rpx, rpy = iso.rotate_coords(self.px, self.py, self.width, self.height, self.facing)
         center = iso.tile_center(rpx, rpy, origin, tile_w, tile_h)
-        sprites.blit_grounded(surface, sprites.unit_sprite(self.party[0]), center)
+        sprites.blit_grounded(surface, sprites.unit_sprite(self.party[0], facing=self.facing_dir), center)
 
         self._draw_hud(surface)
 

@@ -5,15 +5,20 @@ once out of primitive shapes and cached, then blitted like normal sprite
 art instead of being redrawn as a raw circle/diamond every frame.
 """
 
+from pathlib import Path
+
 import pygame
 
 from game import iso
 
 _CACHE = {}
+_ROTATION_CACHE = {}
 
 UNIT_SIZE = (28, 42)
 SKIN = (198, 158, 128)
 OUTLINE = (18, 16, 14)
+
+CHARACTERS_DIR = Path(__file__).resolve().parent.parent / "assets" / "characters"
 
 
 def _humanoid(body_color, faction):
@@ -51,7 +56,36 @@ def _humanoid(body_color, faction):
     return surf
 
 
-def unit_sprite(unit):
+def _trim_transparent(surface):
+    """Crop a surface to its non-transparent content so bottom-anchoring
+    (blit_grounded) lands on the character's feet, not the canvas edge."""
+    rects = pygame.mask.from_surface(surface).get_bounding_rects()
+    if not rects:
+        return surface
+    bounds = rects[0]
+    for r in rects[1:]:
+        bounds = bounds.union(r)
+    return surface.subsurface(bounds).copy()
+
+
+def _rotation_image(sprite_id, facing):
+    key = (sprite_id, facing)
+    if key in _ROTATION_CACHE:
+        return _ROTATION_CACHE[key]
+    path = CHARACTERS_DIR / sprite_id / "rotations" / f"{facing}.png"
+    image = None
+    if path.exists():
+        image = _trim_transparent(pygame.image.load(str(path)).convert_alpha())
+    _ROTATION_CACHE[key] = image
+    return image
+
+
+def unit_sprite(unit, facing="south"):
+    if unit.sprite_id:
+        image = _rotation_image(unit.sprite_id, facing)
+        if image is not None:
+            return image
+
     key = ("unit", unit.faction, unit.color)
     if key not in _CACHE:
         _CACHE[key] = _humanoid(unit.color, unit.faction)
